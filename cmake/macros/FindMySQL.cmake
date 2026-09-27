@@ -108,6 +108,26 @@ if(WIN32)
   # read environment variables and change \ to /
   file(TO_CMAKE_PATH "$ENV{PROGRAMFILES}" PROGRAM_FILES_32)
   file(TO_CMAKE_PATH "$ENV{ProgramW6432}" PROGRAM_FILES_64)
+
+  # Auto-detect the installed MySQL Server / MariaDB version instead of relying
+  # on the hard-coded list below (upstream only knew about <= MySQL 8.3 and
+  # MariaDB 10.5, so a plain 8.4 / 9.x install was invisible -> "Could not find
+  # the MySQL libraries"). Directories are sorted newest first by CONFIGURE_DEPENDS-free
+  # glob; rsort is done manually below so the newest version wins.
+  set(_MYSQL_SERVER_DIRS "")
+  foreach(_mysql_glob_root "${PROGRAM_FILES_64}" "${PROGRAM_FILES_32}")
+    file(GLOB _mysql_globbed
+      "${_mysql_glob_root}/MySQL/MySQL Server *"
+      "${_mysql_glob_root}/MySQL/MySQL Server */"
+      "${_mysql_glob_root}/MariaDB *"
+    )
+    list(APPEND _MYSQL_SERVER_DIRS ${_mysql_globbed})
+  endforeach()
+  if(_MYSQL_SERVER_DIRS)
+    list(REMOVE_DUPLICATES _MYSQL_SERVER_DIRS)
+    list(SORT _MYSQL_SERVER_DIRS)
+    list(REVERSE _MYSQL_SERVER_DIRS)
+  endif()
 endif(WIN32)
 
 find_path(MYSQL_INCLUDE_DIR
@@ -156,6 +176,7 @@ find_path(MYSQL_INCLUDE_DIR
     "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MariaDB 10.4 (x64);INSTALLDIR]"
     "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MariaDB 10.5;INSTALLDIR]"
     "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MariaDB 10.5 (x64);INSTALLDIR]"
+    ${_MYSQL_SERVER_DIRS}
   PATH_SUFFIXES
     include
     include/mysql
@@ -222,9 +243,11 @@ if(WIN32)
       "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MariaDB 10.4 (x64);INSTALLDIR]"
       "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MariaDB 10.5;INSTALLDIR]"
       "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MariaDB 10.5 (x64);INSTALLDIR]"
+      ${_MYSQL_SERVER_DIRS}
     PATH_SUFFIXES
       lib
       lib/opt
+      lib/vs14
     DOC "Specify the location of the mysql library here."
   )
 endif(WIN32)
@@ -297,6 +320,7 @@ if(WIN32)
       "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MariaDB 10.4 (x64);INSTALLDIR]"
       "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MariaDB 10.5;INSTALLDIR]"
       "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MariaDB 10.5 (x64);INSTALLDIR]"
+      ${_MYSQL_SERVER_DIRS}
     PATH_SUFFIXES
       bin
       bin/opt
